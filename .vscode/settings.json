@@ -5,5 +5,8 @@
         "duckduckgo",
         "openai"
     ],
-    "python.REPL.enableREPLSmartSend": false
+    "python.REPL.enableREPLSmartSend": false,
+    "black-formatter.args": [
+        "--line-length", "100"
+    ]
 }
