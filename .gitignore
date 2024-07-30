@@ -2,3 +2,6 @@
 venv
 *.pyc
 *.log
+
+*.jpg
+*.png

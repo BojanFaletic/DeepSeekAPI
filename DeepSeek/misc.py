@@ -85,6 +85,7 @@ def simple_agent_v02(question: str):
 
     return "Unable to solve the problem", usage, trace
 
+
 def simple_agent_v03(question: str):
     system = [
         {
@@ -112,7 +113,7 @@ Create only an initial plan.
     for i in range(N):
         logging.info(f"Attempt {i+1} / {N}")
 
-        # Run with the suggested aproach from the reviewer
+        # Run with the suggested approach from the reviewer
         out, usage, trace = client.infer_with_tools(
             messages=trace + [{"role": "user", "content": "Solve the problem."}], prev_usage=usage
         )
@@ -120,7 +121,7 @@ Create only an initial plan.
         logging.info("Generator: " + out)
 
         # check if the task is solved
-        cmd = """If the task is solved, please type "SOLVED:" and the answer (the text after solvedd will be visible to user). \
+        cmd = """If the task is solved, please type "SOLVED:" and the answer (the text after solved will be visible to user). \
             Make sure to be very critical if the task is solved in full. \
             Task is consider solved only if the answer contains ALL requirements to the original question. \
             Otherwise, type "NO". And suggest improvements, or different approaches."""
@@ -139,3 +140,57 @@ Create only an initial plan.
     return "Unable to solve the problem", usage, trace
 
 
+def simple_agent_v04(question: str):
+    system = [
+        {
+            "role": "system",
+            "content": """\
+Solve the problem.
+Rephrase the question.
+Think step by step""",
+        }
+    ]
+
+    cmd = """\
+Rephrase the task.
+This is your planning step.
+Then make high-level observations.
+Break the task into smaller steps.
+Create only an initial plan.
+"""
+
+    out, usage, trace = client.infer_with_tools(
+        system + [{"role": "user", "content": cmd + question}]
+    )
+
+    N = 5
+    for i in range(N):
+        logging.info(f"Attempt {i+1} / {N}")
+
+        # Run with the suggested approach from the reviewer
+        out, usage, trace = client.infer_with_tools(
+            messages=trace
+            + [{"role": "user", "content": "Solve the problem. Provide confidence level."}],
+            prev_usage=usage,
+        )
+
+        logging.info("Generator: " + out)
+
+        # check if the task is solved
+        cmd = """If the task is solved, please type "SOLVED:" and the answer (the text after solved will be visible to user). \
+            Make sure to be very critical if the task is solved in full. \
+            Task is consider solved only if the answer contains ALL requirements to the original question. \
+            Otherwise, type "NO". And suggest improvements, or different approaches."""
+
+        out, usage, trace = client.infer_with_tools(
+            messages=trace + [{"role": "user", "content": cmd}], prev_usage=usage
+        )
+
+        logging.info("Verifier: " + out)
+
+        # terminate the loop if the task is solved
+        if "SOLVED:" in out:
+            # display only the answer
+            return out, usage, trace
+
+    return "Unable to solve the problem", usage, trace

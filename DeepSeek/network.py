@@ -31,11 +31,11 @@ class Socket:
         self.client.close()
 
     def run_bash_shell(self, command: str) -> str:
-        """Run a bash command in the remote server.
-        Args:
-            command (str): Bash command to be executed in the remote server.
-        Returns:
-            str: stdout of the bash command execution.
+        """
+        Run a bash command in the remote server.
+
+        @param command: Bash command to be executed in the remote server.
+        @return: stdout of the bash command execution.
         """
         # Run the command on the remote server
         stdin, stdout, stderr = self.client.exec_command(command)
@@ -49,11 +49,11 @@ class Socket:
         return stdout.read().decode("utf-8")
 
     def run_python_shell(self, code: str) -> str:
-        """Run python code in the remote server. Make sure to print the output.
-        Args:
-            code (str): Python code to be executed in the remote server.
-        Returns:
-            str: stdout of the python code execution.
+        """
+        Run python code in the remote server. Make sure to print(x) for output.
+
+        @param code: Python code to be executed in the remote server.
+        @return: stdout of the python code execution.
         """
         # Encode the Python code in base64
         encoded_code = base64.b64encode(code.encode()).decode()

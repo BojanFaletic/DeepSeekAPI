@@ -27,7 +27,9 @@ class DeepSeek:
             self.default_model = {"name": "deepseek-chat", "input": 0.14, "output": 0.28}
 
         if api_key is None:
-            raise ValueError("API key not found. Please provide an API key or add it to the .env file")
+            raise ValueError(
+                "API key not found. Please provide an API key or add it to the .env file"
+            )
 
         self.client = Client(base_url=MODEL_URL, api_key=api_key)
 
@@ -157,6 +159,8 @@ class DeepSeek:
                     messages = self.__handle_tool_call(tool_call, messages)
                 return self.infer_with_tools(messages, prev_usage=usage)
 
-        content = "\n".join([choice.message.content for choice in response.choices])
+        content = "\n".join(
+            choice.message.content for choice in response.choices if choice.message.content
+        )
         messages.append({"role": "assistant", "content": content})
         return content, usage, messages
