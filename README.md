@@ -29,7 +29,7 @@ $ python main.py
 import DeepSeek
 
 def main():
-    answer, usage, trace = DeepSeek.simple_agent_v04("9.11 and 9.9 -- Which is bigger?")
+    answer, usage, trace = DeepSeek.simple_agent_v01("9.11 and 9.9 -- Which is bigger?")
     print(f"Answer: {answer}")
     print(f"Usage: {usage}")
     #print(f"Trace: {trace}")
@@ -40,8 +40,8 @@ if __name__ == "__main__":
 
 Output:
 ```python
-Answer: SOLVED: 9.9 is greater than 9.11.
-Usage: {'input': 2622, 'output': 442, 'cost': 0.066}
+Answer: SOLVED: 9.9 is larger than 9.11.
+Usage: {'input': 2645, 'output': 486, 'cost': 0.069}
 ```
 
 Note, the cost is the total cost of running the agent in cents $.

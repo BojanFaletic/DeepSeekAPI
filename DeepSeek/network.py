@@ -48,9 +48,9 @@ class Socket:
         # Return the output
         return stdout.read().decode("utf-8")
 
-    def run_python_shell(self, code: str) -> str:
+    def run_python_code(self, code: str) -> str:
         """
-        Run python code in the remote server. Make sure to print(x) for output.
+        Run python code in the remote server. In order to see the output you must print it!
 
         @param code: Python code to be executed in the remote server.
         @return: stdout of the python code execution.

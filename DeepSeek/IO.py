@@ -3,6 +3,7 @@ import inspect
 import json
 import logging
 import time
+from typing import Optional
 
 from openai import Client, RateLimitError
 from openai.types.chat import ChatCompletion, ChatCompletionMessageToolCall
@@ -41,7 +42,7 @@ class DeepSeek:
         self.init_model_tools(
             [
                 self.socket.run_bash_shell,
-                self.socket.run_python_shell,
+                self.socket.run_python_code,
                 # search,
             ]
         )
@@ -87,7 +88,7 @@ class DeepSeek:
 
         return tools
 
-    def __handle_tool_call(self, tool_call: ChatCompletionMessageToolCall, messages: list) -> list:
+    def __handle_tool_call(self, tool_call: ChatCompletionMessageToolCall, messages: list) -> None:
         tool_call_function = tool_call.function
         tool_call_arguments: dict = json.loads(tool_call_function.arguments)
         tool_call_name = tool_call_function.name
@@ -119,48 +120,45 @@ class DeepSeek:
                 f.write("-" * 80)
                 f.write("\n\n")
 
+            # Add the output to the messages
             messages += [{"role": "tool", "tool_call_id": tool_call.id, "content": output}]
         else:
             raise ValueError(f"Unknown tool call: {tool_call_name}")
 
-        return messages
+    def __calculate_usage(self, response: ChatCompletion, usage: dict) -> None:
+        usage["input"] = response.usage.prompt_tokens + usage.get("input", 0)
+        usage["output"] = response.usage.completion_tokens + usage.get("output", 0)
+        c_in, c_out = self.default_model["input"], self.default_model["output"]
+        usage["cost"] = round((usage["input"] * c_in + usage["output"] * c_out) / 1e4, 3)
 
-    def infer_with_tools(self, messages: list, prev_usage=None) -> tuple:
-        try:
-            response: ChatCompletion = self.client.chat.completions.create(
-                model=self.default_model["name"],
-                messages=messages,
-                tools=self.tools,
-                tool_choice="auto",
-            )
-        except RateLimitError as e:
-            # Most likely is rate limit per minute. It could be some other error (TODO: check the error code)
-            logging.warn(f"Rate limit error: {e}. Sleeping for 60 seconds")
-            time.sleep(60)
-            return self.infer_with_tools(messages, prev_usage=prev_usage)
+    def infer_without_tools(self, messages: list, usage: dict) -> str:
+        # TODO: this can throw RateLimitError, for now we are not handling it
+        response: ChatCompletion = self.client.chat.completions.create(
+            model=self.default_model["name"], messages=messages
+        )
 
-        usage = {
-            "input": response.usage.prompt_tokens,
-            "output": response.usage.completion_tokens,
-        }
+        content = "\n".join(choice.message.content for choice in response.choices)
+        self.__calculate_usage(response, usage)
+        messages.append({"role": "assistant", "content": content})
+        return content
 
-        # Add the usage of the previous call
-        if prev_usage is not None:
-            usage["input"] += prev_usage["input"]
-            usage["output"] += prev_usage["output"]
-
-        cost = (self.default_model["input"], self.default_model["output"])
-        usage["cost"] = round((usage["input"] * cost[0] + usage["output"] * cost[1]) / 1e4, 3)
+    def infer_with_tools(self, messages: list, usage: dict) -> str:
+        # TODO: this can throw RateLimitError, for now we are not handling it
+        response: ChatCompletion = self.client.chat.completions.create(
+            model=self.default_model["name"],
+            messages=messages,
+            tools=self.tools,
+            tool_choice="auto",
+            parallel_tool_calls=True,
+        )
 
         for choice in response.choices:
             if choice.message.tool_calls:
                 messages.append(choice.message)
                 for tool_call in choice.message.tool_calls:
-                    messages = self.__handle_tool_call(tool_call, messages)
-                return self.infer_with_tools(messages, prev_usage=usage)
+                    self.__handle_tool_call(tool_call, messages)
 
-        content = "\n".join(
-            choice.message.content for choice in response.choices if choice.message.content
-        )
+        content = "\n".join(ch.message.content for ch in response.choices if ch.message.content)
+        self.__calculate_usage(response, usage)
         messages.append({"role": "assistant", "content": content})
-        return content, usage, messages
+        return content

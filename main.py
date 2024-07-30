@@ -1,7 +1,7 @@
 import DeepSeek
 
 def main():
-    answer, usage, trace = DeepSeek.simple_agent_v04("9.11 and 9.9 -- Which is bigger?")
+    answer, usage, trace = DeepSeek.simple_agent_v01("9.11 and 9.9 -- Which is bigger?")
     print(f"Answer: {answer}")
     print(f"Usage: {usage}")
     #print(f"Trace: {trace}")
