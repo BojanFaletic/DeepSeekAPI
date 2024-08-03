@@ -3,7 +3,7 @@ import inspect
 import json
 import logging
 import time
-from typing import Optional
+from typing import Optional, Callable
 
 from openai import Client, RateLimitError
 from openai.types.chat import ChatCompletion, ChatCompletionMessageToolCall
@@ -11,6 +11,7 @@ from openai.types.chat import ChatCompletion, ChatCompletionMessageToolCall
 from dotenv import load_dotenv
 
 from .network import Socket
+from .types import DS_CompletionUsage
 
 load_dotenv()
 
@@ -25,13 +26,19 @@ class DeepSeek:
         else:
             MODEL_URL = "https://api.deepseek.com/beta"
             api_key = os.getenv("DEEPSEEK_KEY") if api_key is None else api_key
-            self.default_model = {"name": "deepseek-chat", "input": 0.14, "output": 0.28}
+            self.default_model = {
+                "name": "deepseek-chat",
+                "input": 0.14,
+                "output": 0.28,
+                "cache": 0.014,
+            }
 
         if api_key is None:
             raise ValueError(
                 "API key not found. Please provide an API key or add it to the .env file"
             )
 
+        self.use_OpenAI = use_OpenAI
         self.client = Client(base_url=MODEL_URL, api_key=api_key)
 
         # SSH connection to remote server
@@ -125,11 +132,26 @@ class DeepSeek:
         else:
             raise ValueError(f"Unknown tool call: {tool_call_name}")
 
+    def __cache_cost(self, response_usage: DS_CompletionUsage, usage: dict) -> float:
+        c_i, c_c = self.default_model["input"], self.default_model["cache"]
+
+        usage["cache_hit"] = response_usage.prompt_cache_hit_tokens + usage.get("cache_hit", 0)
+        usage["cache_miss"] = response_usage.prompt_cache_miss_tokens + usage.get("cache_miss", 0)
+
+        assert usage["input"] == (usage["cache_hit"] + usage["cache_miss"]), "Cache calculation"
+        return usage["cache_hit"] * c_c + usage["cache_miss"] * c_i
+
     def __calculate_usage(self, response: ChatCompletion, usage: dict) -> None:
         usage["input"] = response.usage.prompt_tokens + usage.get("input", 0)
         usage["output"] = response.usage.completion_tokens + usage.get("output", 0)
-        c_in, c_out = self.default_model["input"], self.default_model["output"]
-        usage["cost"] = round((usage["input"] * c_in + usage["output"] * c_out) / 1e4, 3)
+
+        ignore_cache: bool = self.use_OpenAI
+        c_i: float = self.default_model["input"]
+        cc_fn: Callable[[DS_CompletionUsage, dict], float] = self.__cache_cost
+
+        input_cost = cc_fn(response.usage, usage) if not ignore_cache else usage["input"] * c_i
+        output_cost = usage["output"] * self.default_model["output"]
+        usage["cost"] = round((input_cost + output_cost) / 1e4, 3)
 
     def infer_without_tools(self, messages: list, usage: dict) -> str:
         # TODO: this can throw RateLimitError, for now we are not handling it
