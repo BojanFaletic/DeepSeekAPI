@@ -50,7 +50,8 @@ class Socket:
 
     def run_python_code(self, code: str) -> str:
         """
-        Run python code in the remote server. In order to see the output you must print it!
+        Run python code in the remote server.
+        Important: You MUST print everything you want to see in the output.
 
         @param code: Python code to be executed in the remote server.
         @return: stdout of the python code execution.

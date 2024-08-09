@@ -10,7 +10,7 @@ from openai.types.chat import ChatCompletion, ChatCompletionMessageToolCall
 
 from dotenv import load_dotenv
 
-from .network import Socket
+from .remote.network import Socket
 from .types import DS_CompletionUsage
 
 load_dotenv()
@@ -153,18 +153,19 @@ class DeepSeek:
         output_cost = usage["output"] * self.default_model["output"]
         usage["cost"] = round((input_cost + output_cost) / 1e4, 3)
 
-    def infer_without_tools(self, messages: list, usage: dict) -> str:
+    def infer_without_tools(self, messages: list, usage: Optional[dict] = None) -> str:
         # TODO: this can throw RateLimitError, for now we are not handling it
         response: ChatCompletion = self.client.chat.completions.create(
             model=self.default_model["name"], messages=messages
         )
 
         content = "\n".join(choice.message.content for choice in response.choices)
-        self.__calculate_usage(response, usage)
+        if usage is not None:
+            self.__calculate_usage(response, usage)
         messages.append({"role": "assistant", "content": content})
         return content
 
-    def infer_with_tools(self, messages: list, usage: dict) -> str:
+    def infer_with_tools(self, messages: list, usage: Optional[dict] = None) -> str:
         # TODO: this can throw RateLimitError, for now we are not handling it
         response: ChatCompletion = self.client.chat.completions.create(
             model=self.default_model["name"],
@@ -181,6 +182,7 @@ class DeepSeek:
                     self.__handle_tool_call(tool_call, messages)
 
         content = "\n".join(ch.message.content for ch in response.choices if ch.message.content)
-        self.__calculate_usage(response, usage)
+        if usage is not None:
+            self.__calculate_usage(response, usage)
         messages.append({"role": "assistant", "content": content})
         return content

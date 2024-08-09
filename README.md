@@ -4,25 +4,35 @@ This is a low level API for setting up agents. The agents needs DockerVM, and De
 
 ### Installation
 
-1) Install Docker
-2) Bring docker up via (Dockerfile and docker-compose.yml)
-``` bash
-$ docker-compose up
-```
-TODO: you need to make new user from which DeepSeek can connect.
-
-4) Install python packages
+1) Install local python packages
 ```bash
 $ python -m venv venv
 $ source venv/bin/activate
 $ pip install -r requirements.txt
 ```
 
-5) Test the installation
+2) Install Docker container
+``` bash
+$ docker-compose up --build
+```
+
+
+3) Test the installation
 ```bash
 $ python main.py
 ```
 
+## Random
+
+To manually connect to the docker container
+``` bash
+$ ssh python@localhost -p 2222
+```
+
+To remove the container
+``` bash
+$ docker-compose down
+```
 
 ## Demo
 ```python
@@ -47,5 +57,6 @@ Usage: {'input': 2645, 'output': 486, 'cost': 0.069}
 Note, the cost is the total cost of running the agent in cents $.
 
 ## Changes
+[x] Updated DockerScript to setup temfs for the agent.
 
--- Add support for GPT-4o-mini. DeepSeek tends to have problem with function calling. For now this is a workaround.
+[x] Add support for GPT-4o-mini. DeepSeek tends to have problem with function calling. For now this is a workaround.

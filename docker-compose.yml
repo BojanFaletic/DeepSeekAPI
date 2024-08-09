@@ -3,5 +3,5 @@ services:
     build: .
     ports:
       - "2222:22"
-    volumes:
-      - .:/workspace
+    tmpfs:
+      - /mnt/tempfs:size=100m,uid=1001,gid=1001
