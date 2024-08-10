@@ -1,4 +1,4 @@
-import base64
+from shlex import quote as shlex_quote
 import warnings
 
 from cryptography.utils import CryptographyDeprecationWarning
@@ -7,15 +7,19 @@ warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
 import paramiko
 from paramiko.ssh_exception import NoValidConnectionsError
+from paramiko.channel import ChannelStdinFile, ChannelFile, ChannelStderrFile
 from duckduckgo_search import DDGS
 
 
 class Socket:
+    TEMPFS_DIR = "/mnt/tempfs"
+
     def __init__(self, host=None, port=None, username=None, password=None):
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         if not (host or port or username or password):
+            # Defined in the docker-compose file
             port = 2222
             username = "python"
             password = "python"
@@ -30,6 +34,15 @@ class Socket:
     def __del__(self):
         self.client.close()
 
+    def __execute(
+        self, command: str, timeout: int = 3
+    ) -> tuple[ChannelStdinFile, ChannelFile, ChannelStderrFile]:
+        watchdog = lambda cmd: f"timeout {timeout}s {cmd} || kill -9 $!"
+        change_dir = lambda cmd: f"cd {self.TEMPFS_DIR} && {cmd}"
+
+        cmd_str = change_dir(watchdog(command))
+        return self.client.exec_command(cmd_str)
+
     def run_bash_shell(self, command: str) -> str:
         """
         Run a bash command in the remote server.
@@ -38,14 +51,12 @@ class Socket:
         @return: stdout of the bash command execution.
         """
         # Run the command on the remote server
-        stdin, stdout, stderr = self.client.exec_command(command)
+        stdin, stdout, stderr = self.__execute(command)
 
-        # Check for errors
+        # If there is an error, return it, otherwise return the output
         error = stderr.read().decode("utf-8")
         if error:
             return f"Error: {error}"
-
-        # Return the output
         return stdout.read().decode("utf-8")
 
     def run_python_code(self, code: str) -> str:
@@ -56,21 +67,15 @@ class Socket:
         @param code: Python code to be executed in the remote server.
         @return: stdout of the python code execution.
         """
-        # Encode the Python code in base64
-        encoded_code = base64.b64encode(code.encode()).decode()
-
-        # Command to decode and execute the Python code
-        command = f"python3 -c \"import base64; exec(base64.b64decode('{encoded_code}').decode())\""
 
         # Run the command on the remote server
-        stdin, stdout, stderr = self.client.exec_command(command)
+        command = f"python3 -c {shlex_quote(code)}"
+        stdin, stdout, stderr = self.__execute(command)
 
-        # Check for errors
+        # If there is an error, return it, otherwise return the output
         error = stderr.read().decode("utf-8")
         if error:
             return f"Error: {error}"
-
-        # Return the output
         return stdout.read().decode("utf-8")
 
 

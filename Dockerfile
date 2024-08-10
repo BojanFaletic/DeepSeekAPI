@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 
-RUN apt-get update && apt-get install -y openssh-server python3 python3-numpy
+RUN apt-get update && apt-get install -y git openssh-server python3 python3-numpy
 RUN mkdir /var/run/sshd /mnt/tempfs
 
 RUN useradd -m python && echo "python:python" | chpasswd
